@@ -465,10 +465,16 @@ footer { border-top: 1px solid var(--line); padding-block: 32px; margin-top: 24p
 
 <script>
 (function () {
-  /* To receive messages from the form: get a free access key at https://web3forms.com
-     (enter your email, they send the key) and paste it below. With no key, the form
-     opens the visitor's email app with the message filled in instead. */
-  var WEB3FORMS_KEY = "";
+  /* Contact form via EmailJS (https://dashboard.emailjs.com).
+     Values come from your EmailJS dashboard:
+       Service ID   -> Email Services
+       Template ID  -> Email Templates
+       Public Key   -> Account > General
+     The template should use these variables: {{from_name}}, {{from_email}}, {{message}}, {{subject}}.
+     While any value is empty, the form opens the visitor's email app instead. */
+  var EMAILJS_SERVICE_ID = "service_7h2n32i";
+  var EMAILJS_TEMPLATE_ID = "template_gq3i7ln";
+  var EMAILJS_PUBLIC_KEY = "Nz4-ACWbM1bsHKkFQ";
   var EMAIL = "shubhambhagwat453@gmail.com";
 
   var root = document.documentElement;
@@ -531,7 +537,7 @@ footer { border-top: 1px solid var(--line); padding-block: 32px; margin-top: 24p
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { say("That email address doesn't look right. Check it and try again.", "err"); return; }
     if (form.botcheck.checked) return;
 
-    if (!WEB3FORMS_KEY) {
+    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
       var url = "mailto:" + EMAIL + "?subject=" + encodeURIComponent("Portfolio message from " + name) +
         "&body=" + encodeURIComponent(message + "\n\n" + name + "\n" + email);
       say("Opening your email app. If nothing opens, copy my address above and write to me there.", "");
@@ -539,14 +545,20 @@ footer { border-top: 1px solid var(--line); padding-block: 32px; margin-top: 24p
       return;
     }
     send.disabled = true; send.textContent = "Sending…"; say("", "");
-    fetch("https://api.web3forms.com/submit", {
+    fetch("https://api.emailjs.com/api/v1.0/email/send", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ access_key: WEB3FORMS_KEY, name: name, email: email, message: message, subject: "Portfolio message from " + name })
-    }).then(function (r) { return r.json(); }).then(function (d) {
-      if (d && d.success) { say("Thanks " + name + ", your message was sent.", "ok"); form.reset(); }
-      else { throw new Error("rejected"); }
-    }).catch(function () {
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service_id: EMAILJS_SERVICE_ID,
+        template_id: EMAILJS_TEMPLATE_ID,
+        user_id: EMAILJS_PUBLIC_KEY,
+        template_params: { from_name: name, from_email: email, reply_to: email, message: message, subject: "Portfolio message from " + name }
+      })
+    }).then(function (r) {
+      if (!r.ok) { return r.text().then(function (t) { console.error("EmailJS rejected the request:", r.status, t); throw new Error(t); }); }
+      say("Thanks " + name + ", your message was sent.", "ok"); form.reset();
+    }).catch(function (err) {
+      console.error("Contact form failed:", err);
       say("The message didn't go through. Please email me directly at " + EMAIL + ".", "err");
     }).then(function () { send.disabled = false; send.textContent = "Send message"; });
   });
